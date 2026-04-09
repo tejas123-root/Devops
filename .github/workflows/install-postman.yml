@@ -1,0 +1,103 @@
+name: Install Postman on Local Machine
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - 'claude/**'
+  workflow_dispatch:
+    inputs:
+      install_method:
+        description: 'Installation method (snap or tar)'
+        required: true
+        default: 'snap'
+        type: choice
+        options:
+          - snap
+          - tar
+
+jobs:
+  install-postman:
+    name: Install Postman
+    runs-on: self-hosted   # Targets the local self-hosted runner
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check OS
+        id: os-check
+        run: |
+          echo "OS: $(uname -s)"
+          echo "Distro: $(lsb_release -d 2>/dev/null || cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d '"')"
+          echo "Architecture: $(uname -m)"
+
+      - name: Check if Postman is already installed
+        id: postman-check
+        run: |
+          if command -v postman &>/dev/null; then
+            echo "postman_installed=true" >> "$GITHUB_OUTPUT"
+            echo "Postman is already installed: $(postman --version 2>/dev/null || echo 'version unknown')"
+          else
+            echo "postman_installed=false" >> "$GITHUB_OUTPUT"
+            echo "Postman is not installed. Proceeding with installation."
+          fi
+
+      # ── Method 1: Install via Snap ─────────────────────────────────────────
+      - name: Install Postman via Snap
+        if: |
+          steps.postman-check.outputs.postman_installed == 'false' &&
+          (github.event.inputs.install_method == 'snap' || github.event.inputs.install_method == '')
+        run: |
+          echo "Installing Postman via Snap..."
+
+          # Ensure snapd is installed
+          if ! command -v snap &>/dev/null; then
+            echo "snapd not found. Installing snapd..."
+            sudo apt-get update -y
+            sudo apt-get install -y snapd
+            sudo systemctl enable --now snapd.socket
+            sleep 5
+          fi
+
+          sudo snap install postman
+          echo "Postman installed successfully via Snap."
+
+      # ── Method 2: Install via tar.gz (manual download) ────────────────────
+      - name: Install Postman via tar.gz
+        if: |
+          steps.postman-check.outputs.postman_installed == 'false' &&
+          github.event.inputs.install_method == 'tar'
+        run: bash ${{ github.workspace }}/scripts/install-postman-tar.sh
+
+      # ── Verify Installation ────────────────────────────────────────────────
+      - name: Verify Postman installation
+        run: |
+          echo "Verifying Postman installation..."
+
+          if command -v postman &>/dev/null; then
+            echo "Postman is installed and available in PATH."
+            postman --version 2>/dev/null || echo "Postman binary found (GUI app - version flag may not be supported)."
+          elif [ -f /opt/Postman/Postman ]; then
+            echo "Postman binary found at /opt/Postman/Postman"
+            echo "Desktop shortcut: $(ls /usr/share/applications/postman.desktop 2>/dev/null || echo 'not created')"
+          elif snap list postman &>/dev/null; then
+            echo "Postman snap package installed:"
+            snap list postman
+          else
+            echo "ERROR: Postman installation could not be verified."
+            exit 1
+          fi
+
+      - name: Display Postman installation summary
+        if: always()
+        run: |
+          echo "========================================"
+          echo "        POSTMAN INSTALLATION SUMMARY   "
+          echo "========================================"
+          echo "Host       : $(hostname)"
+          echo "OS         : $(uname -s) $(uname -r)"
+          echo "Install Dir: /opt/Postman  (tar method) | snap (snap method)"
+          echo "Launch     : Run 'postman' in terminal or open from Applications menu"
+          echo "========================================"
