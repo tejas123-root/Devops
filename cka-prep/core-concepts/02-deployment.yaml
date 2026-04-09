@@ -1,0 +1,43 @@
+# CKA Practice: Deployment with rolling update strategy
+# Generate base: kubectl create deployment myapp --image=nginx --replicas=3 --dry-run=client -o yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+  namespace: default
+  labels:
+    app: myapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+        - name: myapp
+          image: nginx:1.25
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+
+---
+# Scale:  kubectl scale deployment myapp --replicas=5
+# Update: kubectl set image deployment/myapp myapp=nginx:1.26
+# Undo:   kubectl rollout undo deployment/myapp
+# Status: kubectl rollout status deployment/myapp

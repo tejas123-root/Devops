@@ -1,0 +1,35 @@
+# CKA Practice: Service types
+
+# ClusterIP — internal only (default)
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-clusterip
+spec:
+  type: ClusterIP
+  selector:
+    app: myapp
+  ports:
+    - port: 80
+      targetPort: 8080
+
+---
+# NodePort — exposes on each node's IP at a static port
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: myapp
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 30080    # Range: 30000–32767
+
+---
+# Quick imperative commands:
+# kubectl expose pod mypod --port=80 --target-port=8080 --type=ClusterIP
+# kubectl expose deployment myapp --port=80 --target-port=8080 --type=NodePort
+# kubectl create service clusterip mysvc --tcp=80:8080

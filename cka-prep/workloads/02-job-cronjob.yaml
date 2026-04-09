@@ -1,0 +1,39 @@
+# CKA Practice: Job and CronJob
+
+# Job — runs to completion
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migration
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure   # Never or OnFailure (NOT Always)
+      containers:
+        - name: migration
+          image: busybox
+          command: ["sh", "-c", "echo Running migration && sleep 5 && echo Done"]
+
+---
+# CronJob — runs Job on a schedule
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly-backup
+spec:
+  schedule: "0 2 * * *"        # Every day at 2 AM
+  concurrencyPolicy: Forbid    # Allow | Forbid | Replace
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: busybox
+              command: ["sh", "-c", "echo Backup started && sleep 10 && echo Backup done"]

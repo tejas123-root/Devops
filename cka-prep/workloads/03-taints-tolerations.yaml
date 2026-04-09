@@ -1,0 +1,42 @@
+# CKA Practice: Taints & Tolerations + Node Affinity
+
+# --- Taint a node (imperative) ---
+# kubectl taint nodes node1 env=prod:NoSchedule
+# kubectl taint nodes node1 env=prod:NoSchedule-   (remove taint)
+
+# Pod with Toleration
+apiVersion: v1
+kind: Pod
+metadata:
+  name: prod-pod
+spec:
+  tolerations:
+    - key: "env"
+      operator: "Equal"
+      value: "prod"
+      effect: "NoSchedule"
+  # Node Affinity — schedule only on nodes labeled disktype=ssd
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: disktype
+                operator: In
+                values:
+                  - ssd
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 1
+          preference:
+            matchExpressions:
+              - key: zone
+                operator: In
+                values:
+                  - us-east-1a
+  containers:
+    - name: nginx
+      image: nginx:1.25
+
+# --- Label a node (imperative) ---
+# kubectl label node node1 disktype=ssd
+# kubectl label node node1 disktype-          (remove label)

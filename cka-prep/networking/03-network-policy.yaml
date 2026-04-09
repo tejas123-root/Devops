@@ -1,0 +1,63 @@
+# CKA Practice: NetworkPolicy
+# Requires a CNI plugin that supports NetworkPolicy (Calico, Cilium, Weave)
+
+# Default deny all ingress in a namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: dev-team
+spec:
+  podSelector: {}       # selects all pods
+  policyTypes:
+    - Ingress
+
+---
+# Allow ingress only from pods with label role=frontend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend
+  namespace: dev-team
+spec:
+  podSelector:
+    matchLabels:
+      role: backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              role: frontend
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8080
+
+---
+# Allow all egress except to a specific IP range
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restrict-egress
+  namespace: dev-team
+spec:
+  podSelector:
+    matchLabels:
+      app: myapp
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80

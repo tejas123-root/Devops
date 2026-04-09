@@ -1,0 +1,78 @@
+# CKA Practice: RBAC — Role, ClusterRole, Bindings, ServiceAccount
+
+# ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-sa
+  namespace: dev-team
+
+---
+# Role — namespace-scoped permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: dev-team
+rules:
+  - apiGroups: [""]                # "" = core API group
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "create", "update", "patch"]
+
+---
+# RoleBinding — bind Role to ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pod-reader-binding
+  namespace: dev-team
+subjects:
+  - kind: ServiceAccount
+    name: app-sa
+    namespace: dev-team
+  - kind: User
+    name: jane
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ClusterRole — cluster-wide permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-reader
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: node-reader-binding
+subjects:
+  - kind: User
+    name: john
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: node-reader
+  apiGroup: rbac.authorization.k8s.io
+
+# Check permissions:
+# kubectl auth can-i get pods --as=jane -n dev-team
+# kubectl auth can-i create deployments --as=system:serviceaccount:dev-team:app-sa
+
+# Imperative commands:
+# kubectl create role pod-reader --verb=get,list,watch --resource=pods -n dev-team
+# kubectl create rolebinding pod-reader-binding --role=pod-reader --user=jane -n dev-team
+# kubectl create clusterrole node-reader --verb=get,list,watch --resource=nodes
+# kubectl create clusterrolebinding node-reader-binding --clusterrole=node-reader --user=john

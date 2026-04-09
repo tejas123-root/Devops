@@ -1,0 +1,40 @@
+# CKA Practice: DaemonSet — runs one pod per node
+# Use case: log collectors, monitoring agents, network plugins
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: log-collector
+  namespace: kube-system
+  labels:
+    app: log-collector
+spec:
+  selector:
+    matchLabels:
+      app: log-collector
+  template:
+    metadata:
+      labels:
+        app: log-collector
+    spec:
+      tolerations:
+        # Run on master/control-plane nodes too
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: log-collector
+          image: fluentd:latest
+          resources:
+            limits:
+              memory: "200Mi"
+            requests:
+              cpu: "100m"
+              memory: "100Mi"
+          volumeMounts:
+            - name: varlog
+              mountPath: /var/log
+      volumes:
+        - name: varlog
+          hostPath:
+            path: /var/log
